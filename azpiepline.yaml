@@ -1,0 +1,37 @@
+trigger:
+ branches:
+ include:
+ - main
+ - release/*
+ - feat/JLLM-56
+pool:
+ name: Azure Pipelines
+variables:
+ OctopusProject: "JLLMarketplacePlatform"
+ VersionNumber: "1.0"
+steps:
+ - task: Docker@0
+ displayName: "Build an image"
+ inputs:
+ containerregistrytype: "Container Registry"
+ dockerRegistryConnection: ACRJLLMarketplacePlatformProd
+ imageName: "$(ImageName)"
+ additionalImageTags: "$(VersionNumber).$(Build.BuildNumber)"
+ - task: Docker@0
+ displayName: "Push an image"
+ condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), contains(variables['Build.SourceBranch'], 'refs/heads/release/')))
+ inputs:
+ containerregistrytype: "Container Registry"
+ dockerRegistryConnection: ACRJLLMarketplacePlatformProd
+ action: "Push an image"
+ imageName: "$(ImageName)"
+ additionalImageTags: "$(VersionNumber).$(Build.BuildNumber)"
+ - task: octopusdeploy.octopus-deploy-build-release-tasks.octopus-create-release.OctopusCreateRelease@4
+ displayName: "Create Octopus Release"
+ condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), contains(variables['Build.SourceBranch'], 'refs/heads/release/')))
+ inputs:
+ OctoConnectedServiceName: Octopus
+ Space: "Spaces-1"
+ ProjectName: "$(OctopusProject)"
+ ReleaseNumber: "$(VersionNumber).$(Build.BuildNumber)"
+ Channel: "JLLMarketplacePlatform-FE"
